@@ -1,0 +1,88 @@
+from dbconnect import get_connection
+
+def register_user(username, password):
+    conn = get_connection()
+    if not conn:
+        return False
+    cursor = conn.cursor()
+    try:
+        cursor.execute("INSERT INTO users (username, password) VALUES (%s, %s)", (username, password))
+        conn.commit()
+        return True
+    except Exception as e:
+        print("Registration error:", e)
+        return False
+    finally:
+        conn.close()
+
+def validate_login(username, password):
+    conn = get_connection()
+    if not conn:
+        return None
+    cursor = conn.cursor()
+    cursor.execute("SELECT id, username FROM users WHERE username=%s AND password=%s", (username, password))
+    user = cursor.fetchone()
+    conn.close()
+    return user
+
+def upload_photo(user_id, filename):
+    conn = get_connection()
+    if not conn:
+        return
+    cursor = conn.cursor()
+    cursor.execute("INSERT INTO photos (user_id, filepath, likes) VALUES (%s, %s, 0)", (user_id, filename))
+    conn.commit()
+    conn.close()
+
+def like_photo(user_id, photo_id):
+    conn = get_connection()
+    if not conn:
+        return False
+    cursor = conn.cursor()
+    try:
+        cursor.execute("SELECT 1 FROM likes WHERE user_id=%s AND photo_id=%s", (user_id, photo_id))
+        if cursor.fetchone():
+            return False
+        cursor.execute("INSERT INTO likes (user_id, photo_id) VALUES (%s, %s)", (user_id, photo_id))
+        cursor.execute("UPDATE photos SET likes = likes + 1 WHERE id = %s", (photo_id,))
+        conn.commit()
+        return True
+    except Exception as e:
+        print("Like error:", e)
+        return False
+    finally:
+        conn.close()
+
+def follow_user(follower_id, following_id):
+    conn = get_connection()
+    if not conn or follower_id == following_id:
+        return False
+    cursor = conn.cursor()
+    try:
+        cursor.execute("SELECT 1 FROM follows WHERE follower_id=%s AND following_id=%s", (follower_id, following_id))
+        if cursor.fetchone():
+            return False
+        cursor.execute("INSERT INTO follows (follower_id, following_id) VALUES (%s, %s)", (follower_id, following_id))
+        conn.commit()
+        return True
+    except Exception as e:
+        print("Follow error:", e)
+        return False
+    finally:
+        conn.close()
+
+def get_all_photos():
+    conn = get_connection()
+    if not conn:
+        return []
+    cursor = conn.cursor()
+    query = """
+        SELECT p.id, u.id, u.username, p.filepath, p.likes
+        FROM photos p
+        JOIN users u ON p.user_id = u.id
+        ORDER BY p.id DESC
+    """
+    cursor.execute(query)
+    results = cursor.fetchall()
+    conn.close()
+    return results

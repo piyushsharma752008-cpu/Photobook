@@ -1,0 +1,17 @@
+import os
+
+DB_HOST = 'localhost'
+DB_USER = 'root'
+DB_PASSWORD = 'anps'
+DB_NAME = 'photobook'
+
+ALLOWED_EXTENSIONS = ['.jpg', '.png']
+MAX_IMAGE_SIZE_MB = 5
+UPLOAD_FOLDER = os.path.join('assets', 'uploads')
+
+def is_valid_file(file_path):
+    if not os.path.isfile(file_path):
+        return False
+    ext = os.path.splitext(file_path)[1].lower()
+    size_mb = os.path.getsize(file_path) / (1024 * 1024)
+    return ext in ALLOWED_EXTENSIONS and size_mb <= MAX_IMAGE_SIZE_MB

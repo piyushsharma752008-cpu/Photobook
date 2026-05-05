@@ -1,0 +1,57 @@
+import tkinter as tk
+from tkinter import messagebox
+import sys
+import os
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+
+import models
+import mains
+import session
+
+class LoginWindow:
+    def __init__(self, root):
+        self.root = root
+        self.root.title("Photobook — Login")
+        self.root.geometry("300x300")
+
+        tk.Label(root, text="Welcome to Photobook", font=("Arial", 14)).pack(pady=10)
+        tk.Label(root, text="Username").pack()
+        self.username_entry = tk.Entry(root)
+        self.username_entry.pack()
+
+        tk.Label(root, text="Password").pack()
+        self.password_entry = tk.Entry(root, show="*")
+        self.password_entry.pack()
+
+        tk.Button(root, text="Login", command=self.login_user).pack(pady=5)
+        tk.Button(root, text="Register", command=self.register_user).pack()
+
+    def login_user(self):
+        username = self.username_entry.get()
+        password = self.password_entry.get()
+        user_data = models.validate_login(username, password)
+
+        if user_data:
+            user_id, username = user_data
+            session.current_user["id"] = user_id
+            session.current_user["username"] = username
+            messagebox.showinfo("Login", f"Welcome, {username}!")
+            self.root.destroy()
+            mains.launch_main_window()
+        else:
+            messagebox.showerror("Login Failed", "Invalid username or password.")
+
+    def register_user(self):
+        username = self.username_entry.get()
+        password = self.password_entry.get()
+        if models.register_user(username, password):
+            messagebox.showinfo("Success", "Registered successfully!")
+            self.username_entry.delete(0, tk.END)
+            self.password_entry.delete(0, tk.END)
+        else:
+            messagebox.showerror("Error", "Username may already exist.")
+
+if __name__ == "__main__":
+    root = tk.Tk()
+    LoginWindow(root)
+    root.mainloop()

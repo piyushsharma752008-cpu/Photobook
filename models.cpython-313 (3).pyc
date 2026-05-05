@@ -1,0 +1,89 @@
+import tkinter as tk
+from tkinter import filedialog, messagebox
+from PIL import Image, ImageTk
+import os
+import shutil
+
+import models
+import session
+from gui.config import UPLOAD_FOLDER, is_valid_file
+
+def launch_main_window():
+    user_id = session.current_user["id"]
+    username = session.current_user["username"]
+
+    root = tk.Tk()
+    root.title(f"Photobook — Welcome {username}")
+    root.geometry("800x700")  # Larger window
+
+    # Scrollable canvas setup
+    canvas = tk.Canvas(root)
+    scrollbar = tk.Scrollbar(root, orient="vertical", command=canvas.yview)
+    scroll_frame = tk.Frame(canvas)
+
+    scroll_frame.bind(
+        "<Configure>",
+        lambda e: canvas.configure(scrollregion=canvas.bbox("all"))
+    )
+
+    canvas.create_window((0, 0), window=scroll_frame, anchor="nw")
+    canvas.configure(yscrollcommand=scrollbar.set)
+
+    canvas.pack(side="left", fill="both", expand=True)
+    scrollbar.pack(side="right", fill="y")
+
+    def refresh_feed():
+        for widget in scroll_frame.winfo_children():
+            widget.destroy()
+        photos = models.get_all_photos()
+        for photo in photos:
+            show_photo_card(photo)
+
+    def show_photo_card(photo):
+        photo_id, poster_id, poster_name, filename, likes = photo
+        path = os.path.join(UPLOAD_FOLDER, filename)
+        img = Image.open(path)
+        img.thumbnail((500, 500))  # Larger thumbnail
+        img_tk = ImageTk.PhotoImage(img)
+
+        card = tk.Frame(scroll_frame, relief="ridge", borderwidth=3, padx=20, pady=20)
+        card.pack(pady=30, padx=30, fill="x")
+
+        # Center-align content
+        tk.Label(card, image=img_tk).pack(pady=10)
+        tk.Label(card, text=f"By: {poster_name}", font=("Arial", 14)).pack()
+        tk.Label(card, text=f"❤️ {likes} likes", font=("Arial", 12)).pack(pady=5)
+        tk.Button(card, text="Like", command=lambda: like_photo(photo_id)).pack(pady=5)
+        if poster_id != user_id:
+            tk.Button(card, text="Follow", command=lambda: follow_user(poster_id)).pack(pady=5)
+
+        card.image = img_tk
+
+    def like_photo(photo_id):
+        models.like_photo(user_id, photo_id)
+        refresh_feed()
+
+    def follow_user(poster_id):
+        if models.follow_user(user_id, poster_id):
+            messagebox.showinfo("Follow", "You followed this user.")
+        else:
+            messagebox.showwarning("Follow", "Already following.")
+        refresh_feed()
+
+    def upload_photo():
+        filepath = filedialog.askopenfilename(filetypes=[("Images", "*.png;*.jpg")])
+        if filepath and is_valid_file(filepath):
+            filename = os.path.basename(filepath)
+            destination = os.path.join(UPLOAD_FOLDER, filename)
+            shutil.copy(filepath, destination)
+            models.upload_photo(user_id, filename)
+            messagebox.showinfo("Upload", f"Photo uploaded:\n{filename}")
+            refresh_feed()
+        else:
+            messagebox.showerror("Upload Failed", "Invalid file type or size.")
+
+    tk.Button(root, text="Upload Photo", command=upload_photo, font=("Arial", 12)).pack(pady=10)
+    tk.Button(root, text="Logout", command=lambda: (session.logout(), root.destroy()), font=("Arial", 12)).pack(pady=10)
+
+    refresh_feed()
+    root.mainloop()
